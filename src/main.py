@@ -1,11 +1,14 @@
 import sys
 import threading
-import cv2
 from typing import Dict
-from ursina import Ursina, Entity, Vec3, Vec2, camera, Keys, held_keys, color, time, window, mouse, clamp, destroy
+from ursina import Ursina, Entity, Vec3, Vec2, camera, Keys, held_keys, color, time, window, mouse, clamp, destroy, Audio, Color, Shader
 from ursina.prefabs.first_person_controller import FirstPersonController
+import fpstimer
+import av
+from PIL import ImageOps
 
-window.borderless = False
+window.borderless = True
+window.size = (1200, 720)
 
 blocks:Dict[Vec3, Entity] = {}
 
@@ -15,57 +18,20 @@ class UwUCamera(Entity):
 
         self.controller = FirstPersonController()
         self.controller.gravity = 0
-        self.controller.speed = 8
+        self.controller.speed = 10
         self.controller.cursor.disable()
 
-        self.controller.position = Vec3(0, 42, 0)
+        self.controller.position = Vec3(30, 20, -57)
 
     def update(self):
         if held_keys["space"]:
-            self.controller.position += (self.controller.up * 8) * time.dt
+            self.controller.position += (self.controller.up * 10) * time.dt
 
         if held_keys[Keys.left_shift]:
-            self.controller.position += (self.controller.down * 8) * time.dt
+            self.controller.position += (self.controller.down * 10) * time.dt
 
         if held_keys[Keys.escape]:
             sys.exit(0)
-
-
-class BadApple(Entity):
-    def __init__(self):
-        super().__init__()
-
-        self.bad_apple_cap = cv2.VideoCapture("./output.mp4")
-
-        # Get first frame.
-        frame = self.bad_apple_cap.read()[1]
-
-        # Grab the image dimensions
-        self.height = frame.shape[0]
-        self.width = frame.shape[1]
-    
-    def start_render(self):
-        while self.bad_apple_cap.isOpened():
-            frame = self.bad_apple_cap.read()[1]
-
-            # loop over the image, pixel by pixel
-            for y in range(0, self.height):
-                for x in range(0, self.width):
-                    # threshold the pixel
-                    #sys.stdout.writelines(f"{frame[y, x]}\n")
-
-                    if Vec3(x,0,y) in blocks: destroy(blocks[Vec3(x,0,y)])
-                    Block(location=(x,0,y)).color = color.rgb(frame[y, x][0], frame[y, x][1], frame[y, x][2])
-                time.sleep(0.2)
-
-            if cv2.waitKey(1) & 0xFF == ord('q'):
-                pass
-
-    def input(self, key):
-        if key == "m":
-            render_thread = threading.Thread(target=self.start_render)
-            render_thread.setDaemon(True)
-            render_thread.start()
 
 
 class Block(Entity):
@@ -76,17 +42,59 @@ class Block(Entity):
 
         self.model = "cube"
         self.position = location
-        self.collider = "box"
 
-def start_engine():
+def get_frames(video_path:str):
+    cap = av.open(video_path)
+    frames = cap.decode(video=0)
+    return [ImageOps.flip(frame.to_image()) for frame in frames]
+
+def start():
     app = Ursina()
-
     UwUCamera()
-    BadApple()
-
-    Block(location=Vec3(0,0,0))
     
-    app.run()
+    # Get frames.
+    bad_apple_frames = get_frames("./assets/bad_apple.mp4")
+
+    # Grab the image dimensions.
+    # ----------------------------
+    height = bad_apple_frames[0].height; width = bad_apple_frames[0].width
+
+    # Set up colours.
+    # --------------
+    BLACK = color.black; WHITE = color.white
+
+    # Place blocks.
+    # --------------
+    for y in range(0, height):
+        for x in range(0, width):
+            Block(location=Vec3(x,y,0))
+    
+    # FPS Timer
+    # ----------
+    fps_timer = fpstimer.FPSTimer(12)
+
+    # Play audio.
+    # -------------
+    bad_apple_audio = Audio("./bad_apple_audio.mp3")
+    def start_audio(): time.sleep(0.5); bad_apple_audio.play()
+    threading.Thread(target=start_audio).start()
+    
+    # Loop through each frame.
+    # -------------------------
+    for frame in bad_apple_frames:
+        for y in range(0, height):
+            for x in range(0, width):
+                block:Entity = blocks[Vec3(x,y,0)]
+
+                if frame.getpixel((x,y))[0] < 40:
+                    if not block.color == BLACK: block.color = BLACK
+                else:
+                    if not block.color == WHITE: block.color = WHITE
+                
+                #blocks[Vec3(x,0,y)].color = color.rgb(frame[y, x][0], frame[y, x][1], frame[y, x][2])
+        
+        app.step()
+        fps_timer.sleep()
 
 if __name__ == "__main__":
-    start_engine()
+    start()
