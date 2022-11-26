@@ -1,13 +1,14 @@
+from datetime import timedelta
 import sys
 import threading
 from typing import Dict
-from ursina import Ursina, Entity, Vec3, Vec2, camera, Keys, held_keys, color, time, window, mouse, clamp, destroy, Audio, Color, Shader
+from ursina import Ursina, Entity, Vec3, Vec2, Keys, held_keys, color, time, window, Audio
 from ursina.prefabs.first_person_controller import FirstPersonController
 import fpstimer
 import av
 from PIL import ImageOps
 
-window.borderless = True
+window.borderless = False
 window.size = (1200, 720)
 
 blocks:Dict[Vec3, Entity] = {}
@@ -21,7 +22,7 @@ class UwUCamera(Entity):
         self.controller.speed = 10
         self.controller.cursor.disable()
 
-        self.controller.position = Vec3(30, 20, -57)
+        self.controller.position = Vec3(30, 20, -67)
 
     def update(self):
         if held_keys["space"]:
@@ -43,17 +44,33 @@ class Block(Entity):
         self.model = "cube"
         self.position = location
 
+
 def get_frames(video_path:str):
+    print("Decoding all frames...")
     cap = av.open(video_path)
     frames = cap.decode(video=0)
-    return [ImageOps.flip(frame.to_image()) for frame in frames]
+    return [ImageOps.flip(frame.to_image()).resize((70, 50)) for frame in frames], timedelta(microseconds=cap.duration).total_seconds()
+
+def place_blocks(width:int, height:int):
+    print("Placing blocks...")
+
+    # Place blocks.
+    # --------------
+    for y in range(0, height):
+        for x in range(0, width):
+            block = Block(location=Vec3(x,y,0))
+            sys.stdout.write(f"Placed block at {block.position}\n")
+
+    print("Done placing blocks!")
+
 
 def start():
-    app = Ursina()
-    UwUCamera()
-    
-    # Get frames.
-    bad_apple_frames = get_frames("./assets/bad_apple.mp4")
+    # Get video frames.
+    bad_apple_frames, duration_in_seconds = get_frames("./assets/bad_apple.mp4")
+
+    # Reducing frame rate.
+    del bad_apple_frames[1::2]; del bad_apple_frames[1::5]
+    target_frame_rate = (len(bad_apple_frames)/duration_in_seconds)
 
     # Grab the image dimensions.
     # ----------------------------
@@ -63,19 +80,23 @@ def start():
     # --------------
     BLACK = color.black; WHITE = color.white
 
-    # Place blocks.
-    # --------------
-    for y in range(0, height):
-        for x in range(0, width):
-            Block(location=Vec3(x,y,0))
+    # Initialize engine and audio.
+    # --------------------------------
+    app = Ursina()
+    bad_apple_audio = Audio("./assets/bad_apple.mp4", autoplay=False)
+    UwUCamera()
+
+    # Place all blocks.
+    # --------------------
+    place_blocks(width, height)
     
     # FPS Timer
     # ----------
-    fps_timer = fpstimer.FPSTimer(12)
+    fps_timer = fpstimer.FPSTimer(target_frame_rate)
+    print(f"Target frame rate -> {target_frame_rate}")
 
     # Play audio.
     # -------------
-    bad_apple_audio = Audio("./bad_apple_audio.mp3")
     def start_audio(): time.sleep(0.5); bad_apple_audio.play()
     threading.Thread(target=start_audio).start()
     
