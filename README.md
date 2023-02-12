@@ -6,13 +6,15 @@
  <img src="./images/preview.gif" width="600"/>
 </p>
 
-#### *Made with pure procrastination.😴*
+<div align="center">
+
+  🤍Bad                     | Apple🖤
+ :-------------------------:|:-------------------------:
+  <img src="./images/1.png" width="400"/> | <img src="./images/4.png" width="400"/>
+  <img src="./images/3.png" width="400"/> | <img src="./images/2.png" width="400"/>
+
+</div>
+
 <br>
 
-<p align="center">
-  <img src="./images/5.png" width="200"/>
-  <img src="./images/1.png" width="200"/>
-  <img src="./images/3.png" width="200"/>
-  <img src="./images/4.png" width="200"/>
-  <img src="./images/2.png" width="200"/>
-</p>
+#### *Made with pure procrastination.😴*
