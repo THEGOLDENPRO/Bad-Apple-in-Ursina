@@ -15,6 +15,4 @@
 
 </div>
 
-<br>
-
-#### *Made with pure procrastination.😴*
+> #### *Made with pure procrastination.😴*
